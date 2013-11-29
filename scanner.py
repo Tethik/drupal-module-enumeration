@@ -2,31 +2,51 @@
 
 import sys
 import httplib2
+from threading import Thread
+from Queue import Queue
+import time
 
-def Scan(url):
-	modules = file("drupal-modules.lst")
+num_worker_threads = 8
+q = Queue()
+url = ""
+	
+def Scan():	
+
+	
+	# Start threads
+	for _ in range(num_worker_threads):
+		t = Thread(target=Work)
+		t.daemon = True
+		t.start()
+	
+	while not q.empty():
+		time.sleep(1)
+	#q.join()
+	
+def Work():	
 	h = httplib2.Http(disable_ssl_certificate_validation=True)
 	h.follow_all_redirects = False
 	
-	for mod in modules:
-		mod = mod.rstrip()
-		# Check for license.txt
-		licensurl = url+"/sites/all/modules/{}/LICENSE.txt".format(mod)
-		resp, content = h.request(licensurl)
-		#print resp["content-location"]
-		#print licensurl
-		if(resp.status == 200 and resp["content-location"] == licensurl):
-			print mod
-			#print resp
-			continue
-			
-		# Check for 403 or other response than redirect or 404 for module folder
-		folderurl = url+"/sites/all/modules/{}/".format(mod)
-		resp, content = h.request(folderurl)
-		if(resp.status == 200 and resp["content-location"] == folderurl):
-			print mod
-			continue
+	mod = q.get().rstrip()
+	# Check for license.txt
+	licensurl = url+"/sites/all/modules/{}/LICENSE.txt".format(mod)
+	resp, content = h.request(licensurl)
+	#print resp["content-location"]
+	#print licensurl
+	if(resp.status == 200 and resp["content-location"] == licensurl):
+		print mod
+		q.task_done()
+		return
 		
+	# Check for 403 or other response than redirect or 404 for module folder
+	folderurl = url+"/sites/all/modules/{}/".format(mod)
+	resp, content = h.request(folderurl)
+	if(resp.status == 200 and resp["content-location"] == folderurl):
+		print mod
+		q.task_done()
+	
+		
+	
 	
 
 
@@ -37,6 +57,12 @@ if __name__ == '__main__':
 		"""
 		exit(0)
 		
-	Scan(sys.argv[1])
+	# Load files into queue.
+	modules = file("drupal-modules.lst")
+	for mod in modules:
+		q.put(mod)
+		
+	url = sys.argv[1]
+	Scan()
 		
 	
