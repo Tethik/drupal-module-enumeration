@@ -6,7 +6,7 @@ from threading import Thread
 from Queue import Queue
 import time
 
-num_worker_threads = 14
+num_worker_threads = 8
 q = Queue()
 url = ""
 	
