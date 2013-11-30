@@ -6,7 +6,7 @@ from threading import Thread
 from Queue import Queue
 import time
 
-num_worker_threads = 8
+num_worker_threads = 14
 q = Queue()
 url = ""
 	
@@ -20,30 +20,32 @@ def Scan():
 		t.start()
 	
 	while not q.empty():
-		time.sleep(1)
+		time.sleep(4)
+		print "Queue left: ", q.qsize()
 	#q.join()
 	
 def Work():	
+	
 	h = httplib2.Http(disable_ssl_certificate_validation=True)
 	h.follow_all_redirects = False
 	
-	mod = q.get().rstrip()
-	# Check for license.txt
-	licensurl = url+"/sites/all/modules/{}/LICENSE.txt".format(mod)
-	resp, content = h.request(licensurl)
-	#print resp["content-location"]
-	#print licensurl
-	if(resp.status == 200 and resp["content-location"] == licensurl):
-		print mod
-		q.task_done()
-		return
-		
-	# Check for 403 or other response than redirect or 404 for module folder
-	folderurl = url+"/sites/all/modules/{}/".format(mod)
-	resp, content = h.request(folderurl)
-	if(resp.status == 200 and resp["content-location"] == folderurl):
-		print mod
-		q.task_done()
+	while not q.empty():
+		mod = q.get().rstrip()
+		# Check for license.txt
+		licensurl = url+"/sites/all/modules/{}/LICENSE.txt".format(mod)
+		resp, content = h.request(licensurl)
+		#print resp["content-location"]
+		#print licensurl
+		if(resp.status == 200 and resp["content-location"] == licensurl):
+			print mod
+			q.task_done()
+			
+		# Check for 403 or other response than redirect or 404 for module folder
+		folderurl = url+"/sites/all/modules/{}/".format(mod)
+		resp, content = h.request(folderurl)
+		if(resp.status == 200 and resp["content-location"] == folderurl):
+			print mod
+			q.task_done()
 	
 		
 	
